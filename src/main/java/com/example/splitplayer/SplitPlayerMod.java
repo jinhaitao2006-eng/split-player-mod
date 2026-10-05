@@ -2,7 +2,6 @@ package com.example.splitplayer;
 
 import com.mojang.authlib.GameProfile;
 import net.fabricmc.api.ModInitializer;
-import net.fabricmc.fabric.api.entity.FakePlayer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
@@ -19,25 +18,25 @@ public class SplitPlayerMod implements ModInitializer {
     public void onInitialize() {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             tickCounter++;
-            if (tickCounter % 200 != 0) return;
+            if (tickCounter % 100 != 0) return; // 每5秒检查一次
 
             for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
                 ServerWorld world = (ServerWorld) player.getWorld();
                 
-                // 检查是否已经存在
                 Box searchBox = player.getBoundingBox().expand(32.0);
                 List<FakePlayer> existingFakes = world.getEntitiesByClass(FakePlayer.class, searchBox, 
                     entity -> entity.getUuid().equals(FAKE_PLAYER_UUID));
 
                 if (existingFakes.isEmpty()) {
-                    // 使用 Fabric API 直接创建假人（API内部自动处理了伪造网络连接！）
                     GameProfile profile = new GameProfile(FAKE_PLAYER_UUID, "第二玩家");
-                    FakePlayer secondPlayer = FakePlayer.get(world, profile);
+                    FakePlayer secondPlayer = new FakePlayer(server, world, profile);
                     
+                    // 设置位置和模式
                     secondPlayer.refreshPositionAndAngles(player.getX() + 2, player.getY(), player.getZ(), player.getYaw(), player.getPitch());
-                    
-                    // 1.21.1 里使用 changeGameMode
                     secondPlayer.changeGameMode(net.minecraft.world.GameMode.SURVIVAL);
+                    
+                    // 核心：将假玩家添加到服务器的玩家列表中，这样它才能被正确保存和管理
+                    server.getPlayerManager().addPlayer(secondPlayer);
                     
                     player.sendMessage(Text.literal("§a[双人模组] 真正的第二玩家已上线！"), false);
                 }
