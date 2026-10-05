@@ -37,7 +37,8 @@ public class SplitPlayerModClient implements ClientModInitializer {
             if (tickCounter % 5 != 0) return;
 
             String currentAction = "stop";
-            if (forward.isPressed()) currentAction = "forward";
+            // 修复：Carpet 的移动指令是 move forward / move backward
+            if (forward.isPressed()) currentAction = "move forward";
             else if (back.isPressed()) currentAction = "move backward";
             else if (left.isPressed()) currentAction = "turn left";
             else if (right.isPressed()) currentAction = "turn right";
@@ -51,7 +52,7 @@ public class SplitPlayerModClient implements ClientModInitializer {
 
             if (jump.wasPressed()) sendAction("jump");
 
-            // 按 O 键打开假人背包
+            // 按 O 键打开假人背包 (需要 GCA 模组支持)
             if (inventory.wasPressed()) {
                 client.player.networkHandler.sendCommand("player shixiebushixie inventory");
             }
