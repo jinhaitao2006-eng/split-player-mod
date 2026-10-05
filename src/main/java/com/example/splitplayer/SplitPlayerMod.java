@@ -10,6 +10,8 @@ import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.Box;
+import java.util.List;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -26,26 +28,29 @@ public class SplitPlayerMod implements ModInitializer {
 
                     ServerWorld world = (ServerWorld) player.getWorld();
                     
-                    // 生成一个盔甲架代替第二玩家
-                    ArmorStandEntity secondPlayer = EntityType.ARMOR_STAND.create(world);
+                    // 检查周围 10 格内有没有我们的假人
+                    Box searchBox = player.getBoundingBox().expand(10.0);
+                    List<ArmorStandEntity> existingStands = world.getEntitiesByClass(ArmorStandEntity.class, searchBox, entity -> entity.hasCustomName() && entity.getCustomName().getString().contains("第二玩家"));
 
+                    if (!existingStands.isEmpty()) {
+                        player.sendMessage(Text.literal("§e[双人模组] 检测到世界中已存在第二玩家，跳过生成。"), false);
+                        continue;
+                    }
+
+                    // 如果没有，才生成新的
+                    ArmorStandEntity secondPlayer = EntityType.ARMOR_STAND.create(world);
                     if (secondPlayer != null) {
                         secondPlayer.refreshPositionAndAngles(player.getX() + 2, player.getY(), player.getZ(), player.getYaw(), player.getPitch());
                         secondPlayer.setCustomName(Text.literal("§b第二玩家(玩家2)"));
                         secondPlayer.setCustomNameVisible(true);
-                        
-                        // 给第二玩家穿一套钻石装备，证明它有独立装备栏
                         secondPlayer.equipStack(EquipmentSlot.HEAD, new ItemStack(Items.DIAMOND_HELMET));
                         secondPlayer.equipStack(EquipmentSlot.CHEST, new ItemStack(Items.DIAMOND_CHESTPLATE));
                         secondPlayer.equipStack(EquipmentSlot.LEGS, new ItemStack(Items.DIAMOND_LEGGINGS));
                         secondPlayer.equipStack(EquipmentSlot.FEET, new ItemStack(Items.DIAMOND_BOOTS));
                         secondPlayer.equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.DIAMOND_SWORD));
-                        
-                        // 设为无敌且不可破坏（防止掉装备）
                         secondPlayer.setInvulnerable(true);
-                        
                         world.spawnEntity(secondPlayer);
-                        player.sendMessage(Text.literal("§a[双人模组] 第二玩家实体生成成功！它已经穿好装备啦！"), false);
+                        player.sendMessage(Text.literal("§a[双人模组] 第二玩家实体生成成功！"), false);
                     }
                 }
             }
