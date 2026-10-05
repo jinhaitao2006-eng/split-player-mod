@@ -10,6 +10,9 @@
   "entrypoints": {
     "main": [
       "com.example.splitplayer.SplitPlayerMod"
+    ],
+    "client": [
+      "com.example.splitplayer.SplitPlayerModClient"
     ]
   },
   "mixins": [
