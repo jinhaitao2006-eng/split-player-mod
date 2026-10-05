@@ -18,29 +18,24 @@ public class SplitPlayerMod implements ModInitializer {
     public void onInitialize() {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             tickCounter++;
-            if (tickCounter % 200 != 0) return; // 每10秒检查一次
+            if (tickCounter % 200 != 0) return;
 
             for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
                 ServerWorld world = (ServerWorld) player.getWorld();
                 
-                // 搜索周围 32 格内有没有我们的第二玩家
                 Box searchBox = player.getBoundingBox().expand(32.0);
                 List<FakePlayer> existingFakes = world.getEntitiesByClass(FakePlayer.class, searchBox, 
                     entity -> entity.getUuid().equals(FAKE_PLAYER_UUID));
 
                 if (existingFakes.isEmpty()) {
-                    // 生成真正的第二玩家
                     GameProfile profile = new GameProfile(FAKE_PLAYER_UUID, "第二玩家");
                     FakePlayer secondPlayer = new FakePlayer(server, world, profile);
-                    
                     secondPlayer.refreshPositionAndAngles(player.getX() + 2, player.getY(), player.getZ(), player.getYaw(), player.getPitch());
                     
-                    // 设置为生存模式
-                    secondPlayer.setGameMode(net.minecraft.world.GameMode.SURVIVAL);
+                    // 核心修改：使用 changeGameMode 替代不存在的 setGameMode
+                    secondPlayer.changeGameMode(net.minecraft.world.GameMode.SURVIVAL);
                     
-                    // 添加到世界
                     world.spawnEntity(secondPlayer);
-                    
                     player.sendMessage(Text.literal("§a[双人模组] 真正的第二玩家已上线！"), false);
                 }
             }
