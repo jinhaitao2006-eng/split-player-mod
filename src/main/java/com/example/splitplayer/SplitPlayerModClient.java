@@ -9,8 +9,7 @@ import net.minecraft.client.util.InputUtil;
 import org.lwjgl.glfw.GLFW;
 
 public class SplitPlayerModClient implements ClientModInitializer {
-    private String lastAction = "";
-    private int tickCounter = 0;
+    private String lastMove = "";
 
     private void sendAction(String action) {
         MinecraftClient client = MinecraftClient.getInstance();
@@ -21,38 +20,36 @@ public class SplitPlayerModClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        KeyBinding forward = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.splitplayer.forward", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_UP, "category.splitplayer"));
-        KeyBinding back    = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.splitplayer.back", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_DOWN, "category.splitplayer"));
-        KeyBinding left    = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.splitplayer.left", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_LEFT, "category.splitplayer"));
-        KeyBinding right   = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.splitplayer.right", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_RIGHT, "category.splitplayer"));
-        KeyBinding jump    = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.splitplayer.jump", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_J, "category.splitplayer"));
-        KeyBinding attack  = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.splitplayer.attack", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_K, "category.splitplayer"));
-        KeyBinding use     = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.splitplayer.use", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_L, "category.splitplayer"));
+        KeyBinding forward   = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.splitplayer.forward", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_UP, "category.splitplayer"));
+        KeyBinding back      = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.splitplayer.back", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_DOWN, "category.splitplayer"));
+        KeyBinding left      = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.splitplayer.left", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_LEFT, "category.splitplayer"));
+        KeyBinding right     = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.splitplayer.right", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_RIGHT, "category.splitplayer"));
+        KeyBinding jump      = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.splitplayer.jump", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_J, "category.splitplayer"));
+        KeyBinding attack    = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.splitplayer.attack", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_K, "category.splitplayer"));
+        KeyBinding use       = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.splitplayer.use", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_L, "category.splitplayer"));
         KeyBinding inventory = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.splitplayer.inventory", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_O, "category.splitplayer"));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.player == null) return;
 
-            tickCounter++;
-            if (tickCounter % 5 != 0) return;
+            // ===== 移动类：按住保持，松开停止 =====
+            String currentMove = "stop";
+            if (forward.isPressed()) currentMove = "move forward";
+            else if (back.isPressed()) currentMove = "move backward";
+            else if (left.isPressed()) currentMove = "turn left";
+            else if (right.isPressed()) currentMove = "turn right";
 
-            String currentAction = "stop";
-            // 修复：Carpet 的移动指令是 move forward / move backward
-            if (forward.isPressed()) currentAction = "move forward";
-            else if (back.isPressed()) currentAction = "move backward";
-            else if (left.isPressed()) currentAction = "turn left";
-            else if (right.isPressed()) currentAction = "turn right";
-            else if (attack.isPressed()) currentAction = "attack";
-            else if (use.isPressed()) currentAction = "use";
-
-            if (!currentAction.equals(lastAction)) {
-                sendAction(currentAction);
-                lastAction = currentAction;
+            if (!currentMove.equals(lastMove)) {
+                sendAction(currentMove);
+                lastMove = currentMove;
             }
 
+            // ===== 瞬间动作：每次按下都触发一次 =====
             if (jump.wasPressed()) sendAction("jump");
+            if (attack.wasPressed()) sendAction("attack");
+            if (use.wasPressed()) sendAction("use");
 
-            // 按 O 键打开假人背包 (需要 GCA 模组支持)
+            // ===== 背包 =====
             if (inventory.wasPressed()) {
                 client.player.networkHandler.sendCommand("player shixiebushixie inventory");
             }
