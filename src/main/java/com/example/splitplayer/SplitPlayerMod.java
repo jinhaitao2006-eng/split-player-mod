@@ -25,8 +25,8 @@ public class SplitPlayerMod implements ModInitializer {
                             Thread.sleep(5000); // 延迟5秒执行，确保 Carpet 已加载完毕
                             server.execute(() -> {
                                 // 这行代码相当于帮玩家在后台输入了 /player 第二玩家 spawn at @s
-                                server.getCommandManager().executeWithPrefix(player.getCommandSource(), "player didi spawn at ~ ~ ~");
-                                player.sendMessage(Text.literal("§a[双人模组] 第二玩家（didi）已上线！"), false);
+                                server.getCommandManager().executeWithPrefix(player.getCommandSource(), "player shixiebushixie spawn at ~ ~ ~");
+                                player.sendMessage(Text.literal("§a[双人模组] 第二玩家（shixiebushixie）已上线！"), false);
                             });
                         } catch (InterruptedException e) {
                             e.printStackTrace();
