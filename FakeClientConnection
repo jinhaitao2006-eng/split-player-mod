@@ -1,0 +1,27 @@
+import io.netty.channel.embedded.EmbeddedChannel;
+import net.minecraft.network.Connection;
+import net.minecraft.network.PacketListener;
+import net.minecraft.network.ProtocolInfo;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.PacketFlow;
+
+public class FakeClientConnection extends Connection {
+    public FakeClientConnection(PacketFlow p) {
+        super(p);
+        // 这个 EmbeddedChannel 是关键，它让连接看起来是打开的，
+        // 同时会默默丢弃所有发往客户端的数据包。
+        ((ClientConnectionInterface)this).setChannel(new EmbeddedChannel());
+    }
+
+    @Override
+    public void send(Packet<?> packet, @Nullable ChannelFutureListener channelFutureListener, boolean bl) {
+        // 不发送任何数据包，直接忽略
+    }
+
+    @Override
+    public void handleDisconnection() {
+        // 不处理断开连接
+    }
+
+    // ... 可能还需要重写其他一些方法，但核心是上面几个
+}
