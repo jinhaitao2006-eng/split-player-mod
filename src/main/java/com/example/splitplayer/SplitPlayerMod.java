@@ -5,7 +5,10 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.entity.EntityType;
-import net.minecraft.entity.mob.ZombieEntity;
+import net.minecraft.entity.decoration.ArmorStandEntity;
+import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.server.world.ServerWorld;
 import java.util.HashSet;
 import java.util.Set;
@@ -21,25 +24,28 @@ public class SplitPlayerMod implements ModInitializer {
                 if (!spawnedPlayers.contains(player.getUuid())) {
                     spawnedPlayers.add(player.getUuid());
 
-                    // 获取玩家当前所在的服务器世界
                     ServerWorld world = (ServerWorld) player.getWorld();
                     
-                    // 在玩家旁边生成一个僵尸作为第二玩家的占位实体
-                    ZombieEntity secondPlayer = EntityType.ZOMBIE.create(world);
+                    // 生成一个盔甲架代替第二玩家
+                    ArmorStandEntity secondPlayer = EntityType.ARMOR_STAND.create(world);
 
                     if (secondPlayer != null) {
-                        // 坐标：玩家X+2，Y不变，Z不变
                         secondPlayer.refreshPositionAndAngles(player.getX() + 2, player.getY(), player.getZ(), player.getYaw(), player.getPitch());
-                        // 设置头顶名字
                         secondPlayer.setCustomName(Text.literal("§b第二玩家(玩家2)"));
                         secondPlayer.setCustomNameVisible(true);
-                        // 禁用AI，防止它打你；设置为无敌，防止它死掉
-                        secondPlayer.setAiDisabled(true); 
-                        secondPlayer.setInvulnerable(true); 
                         
-                        // 把它生成到世界里
+                        // 给第二玩家穿一套钻石装备，证明它有独立装备栏
+                        secondPlayer.equipStack(EquipmentSlot.HEAD, new ItemStack(Items.DIAMOND_HELMET));
+                        secondPlayer.equipStack(EquipmentSlot.CHEST, new ItemStack(Items.DIAMOND_CHESTPLATE));
+                        secondPlayer.equipStack(EquipmentSlot.LEGS, new ItemStack(Items.DIAMOND_LEGGINGS));
+                        secondPlayer.equipStack(EquipmentSlot.FEET, new ItemStack(Items.DIAMOND_BOOTS));
+                        secondPlayer.equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.DIAMOND_SWORD));
+                        
+                        // 设为无敌且不可破坏（防止掉装备）
+                        secondPlayer.setInvulnerable(true);
+                        
                         world.spawnEntity(secondPlayer);
-                        player.sendMessage(Text.literal("§a[双人模组] 第二玩家实体生成成功！它就在你旁边！"), false);
+                        player.sendMessage(Text.literal("§a[双人模组] 第二玩家实体生成成功！它已经穿好装备啦！"), false);
                     }
                 }
             }
