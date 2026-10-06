@@ -66,7 +66,7 @@ public class SplitPlayerMod implements ModInitializer {
                 if (!inView) {
                     double tx = player.getX() + look.x * PUSH_BACK_DIST;
                     double tz = player.getZ() + look.z * PUSH_BACK_DIST;
-                    fake.teleport(tx, fake.getY(), tz);
+                    fake.teleport(tx, fake.getY(), tz, false);
                 }
             }
         });
