@@ -10,50 +10,58 @@ public class SplitPlayerMod implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        // 服务器启动时自动配置 Carpet 规则
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
-            server.getCommandManager().executeWithPrefix(server.getCommandSource(), "carpet openFakePlayerInventory true");
-            server.getCommandManager().executeWithPrefix(server.getCommandSource(), "carpet fakePlayerAutoRespawn death");
-            server.getCommandManager().executeWithPrefix(server.getCommandSource(), "carpet fakePlayerResident true");
-            server.getCommandManager().executeWithPrefix(server.getCommandSource(), "carpet fakePlayerAutoPickup true");
-            server.getCommandManager().executeWithPrefix(server.getCommandSource(), "gamerule sendCommandFeedback false");
+            server.getCommandManager().executeWithPrefix(server.getCommandSource(),
+                "carpet openFakePlayerInventory true");
+            server.getCommandManager().executeWithPrefix(server.getCommandSource(),
+                "carpet fakePlayerAutoRespawn death");
+            server.getCommandManager().executeWithPrefix(server.getCommandSource(),
+                "carpet fakePlayerResident true");
+            server.getCommandManager().executeWithPrefix(server.getCommandSource(),
+                "carpet fakePlayerAutoPickup true");
+            server.getCommandManager().executeWithPrefix(server.getCommandSource(),
+                "gamerule sendCommandFeedback false");
         });
 
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             tickCounter++;
-            if (tickCounter % 10 != 0) return; // 每0.5秒检查一次
+            if (tickCounter % 20 != 0) return; // 每1秒检查一次
 
             for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
                 if (player.getName().getString().equals("shixiebushixie")) continue;
+
                 ServerPlayerEntity fakePlayer = server.getPlayerManager().getPlayer("shixiebushixie");
 
+                // 假人不存在就生成
                 if (fakePlayer == null) {
-                    server.getCommandManager().executeWithPrefix(player.getCommandSource(), "player shixiebushixie spawn at ~ ~ ~");
+                    server.getCommandManager().executeWithPrefix(
+                        player.getCommandSource(),
+                        "player shixiebushixie spawn at ~ ~ ~"
+                    );
                     continue;
                 }
 
-                // 计算假人相对于玩家的位置
+                // ===== 视野检测 =====
                 double dx = fakePlayer.getX() - player.getX();
                 double dz = fakePlayer.getZ() - player.getZ();
                 double distSq = dx * dx + dz * dz;
 
-                // 玩家视线方向
                 float yawRad = (float) Math.toRadians(player.getYaw());
                 double lookX = -Math.sin(yawRad);
                 double lookZ = Math.cos(yawRad);
-
-                // 夹角余弦值
                 double dot = dx * lookX + dz * lookZ;
-                double dist = Math.sqrt(distSq);
 
-                // 视野锥：水平FOV约70度，半角35度，cos(35°) ≈ 0.82
-                double cosAngle = (dist > 0.01) ? dot / dist : 1.0;
+                // 判定：假人是否离开视野
+                boolean behindAndFar = dot < 0 && distSq > 64;   // 在身后且超过8格
+                boolean tooFar       = distSq > 400;              // 超过20格
 
-                // 限制条件：夹角超过35度 或 距离超过10格 → 视为超出视野
-                boolean outOfView = (cosAngle < 0.82) || (distSq > 100);
-
-                if (outOfView) {
-                    // 超出视野边界，立刻停下，不再让它继续走
-                    server.getCommandManager().executeWithPrefix(player.getCommandSource(), "player shixiebushixie stop");
+                if (behindAndFar || tooFar) {
+                    // 超出视野 → 传送回玩家身边
+                    server.getCommandManager().executeWithPrefix(
+                        player.getCommandSource(),
+                        "player shixiebushixie spawn at ~ ~ ~"
+                    );
                 }
             }
         });
