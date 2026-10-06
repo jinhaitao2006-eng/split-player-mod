@@ -7,75 +7,53 @@ import net.minecraft.server.network.ServerPlayerEntity;
 
 public class SplitPlayerMod implements ModInitializer {
     private int tickCounter = 0;
-    // 记录假人当前状态：0=空闲，1=正在走回来
-    private int fakeState = 0;
 
     @Override
     public void onInitialize() {
-        // 服务器启动时自动配置 Carpet 规则
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
-            server.getCommandManager().executeWithPrefix(server.getCommandSource(),
-                "carpet openFakePlayerInventory true");
-            server.getCommandManager().executeWithPrefix(server.getCommandSource(),
-                "carpet fakePlayerAutoRespawn death");
-            server.getCommandManager().executeWithPrefix(server.getCommandSource(),
-                "carpet fakePlayerResident true");
-            server.getCommandManager().executeWithPrefix(server.getCommandSource(),
-                "carpet fakePlayerAutoPickup true");
-            server.getCommandManager().executeWithPrefix(server.getCommandSource(),
-                "gamerule sendCommandFeedback false");
+            server.getCommandManager().executeWithPrefix(server.getCommandSource(), "carpet openFakePlayerInventory true");
+            server.getCommandManager().executeWithPrefix(server.getCommandSource(), "carpet fakePlayerAutoRespawn death");
+            server.getCommandManager().executeWithPrefix(server.getCommandSource(), "carpet fakePlayerResident true");
+            server.getCommandManager().executeWithPrefix(server.getCommandSource(), "carpet fakePlayerAutoPickup true");
+            server.getCommandManager().executeWithPrefix(server.getCommandSource(), "gamerule sendCommandFeedback false");
         });
 
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             tickCounter++;
-            if (tickCounter % 20 != 0) return; // 每1秒检查一次
+            if (tickCounter % 10 != 0) return; // 每0.5秒检查一次
 
             for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
                 if (player.getName().getString().equals("shixiebushixie")) continue;
-
                 ServerPlayerEntity fakePlayer = server.getPlayerManager().getPlayer("shixiebushixie");
 
                 if (fakePlayer == null) {
-                    server.getCommandManager().executeWithPrefix(
-                        player.getCommandSource(),
-                        "player shixiebushixie spawn at ~ ~ ~"
-                    );
-                    fakeState = 0;
+                    server.getCommandManager().executeWithPrefix(player.getCommandSource(), "player shixiebushixie spawn at ~ ~ ~");
                     continue;
                 }
 
-                // 视野检测
+                // 计算假人相对于玩家的位置
                 double dx = fakePlayer.getX() - player.getX();
                 double dz = fakePlayer.getZ() - player.getZ();
                 double distSq = dx * dx + dz * dz;
 
+                // 玩家视线方向
                 float yawRad = (float) Math.toRadians(player.getYaw());
                 double lookX = -Math.sin(yawRad);
                 double lookZ = Math.cos(yawRad);
+
+                // 夹角余弦值
                 double dot = dx * lookX + dz * lookZ;
+                double dist = Math.sqrt(distSq);
 
-                boolean outOfView = dot < 0 && distSq > 64;  // 在身后且超过8格
-                boolean tooClose = distSq < 16;               // 4格内
+                // 视野锥：水平FOV约70度，半角35度，cos(35°) ≈ 0.82
+                double cosAngle = (dist > 0.01) ? dot / dist : 1.0;
 
-                // 状态机：只在状态切换时发指令
-                if (outOfView && fakeState != 1) {
-                    // 从空闲 → 走回来
-                    server.getCommandManager().executeWithPrefix(
-                        player.getCommandSource(),
-                        "player shixiebushixie look at " + player.getName().getString()
-                    );
-                    server.getCommandManager().executeWithPrefix(
-                        player.getCommandSource(),
-                        "player shixiebushixie move forward"
-                    );
-                    fakeState = 1;
-                } else if ((!outOfView || tooClose) && fakeState == 1) {
-                    // 从走回来 → 空闲
-                    server.getCommandManager().executeWithPrefix(
-                        player.getCommandSource(),
-                        "player shixiebushixie stop"
-                    );
-                    fakeState = 0;
+                // 限制条件：夹角超过35度 或 距离超过10格 → 视为超出视野
+                boolean outOfView = (cosAngle < 0.82) || (distSq > 100);
+
+                if (outOfView) {
+                    // 超出视野边界，立刻停下，不再让它继续走
+                    server.getCommandManager().executeWithPrefix(player.getCommandSource(), "player shixiebushixie stop");
                 }
             }
         });
