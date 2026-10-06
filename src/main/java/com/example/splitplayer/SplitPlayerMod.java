@@ -4,13 +4,18 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.math.Vec3d;
 
 public class SplitPlayerMod implements ModInitializer {
-    private int tickCounter = 0;
+    // 视野半角：60° → 水平视野 120°
+    private static final double COS_HALF_FOV = Math.cos(Math.toRadians(60));
+    // 最远能看到 10 格
+    private static final double MAX_VIEW_DIST = 10.0;
+    // 超出后弹回玩家正前方 4 格
+    private static final double PUSH_BACK_DIST = 4.0;
 
     @Override
     public void onInitialize() {
-        // 服务器启动时自动配置 Carpet 规则
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             server.getCommandManager().executeWithPrefix(server.getCommandSource(),
                 "carpet openFakePlayerInventory true");
@@ -25,43 +30,42 @@ public class SplitPlayerMod implements ModInitializer {
         });
 
         ServerTickEvents.END_SERVER_TICK.register(server -> {
-            tickCounter++;
-            if (tickCounter % 20 != 0) return; // 每1秒检查一次
-
             for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
                 if (player.getName().getString().equals("shixiebushixie")) continue;
 
-                ServerPlayerEntity fakePlayer = server.getPlayerManager().getPlayer("shixiebushixie");
-
-                // 假人不存在就生成
-                if (fakePlayer == null) {
+                ServerPlayerEntity fake = server.getPlayerManager().getPlayer("shixiebushixie");
+                if (fake == null) {
                     server.getCommandManager().executeWithPrefix(
                         player.getCommandSource(),
-                        "player shixiebushixie spawn at ~ ~ ~"
+                        "player shixiebushixie spawn at " + player.getX() + " " + player.getY() + " " + player.getZ()
                     );
                     continue;
                 }
 
-                // ===== 视野检测 =====
-                double dx = fakePlayer.getX() - player.getX();
-                double dz = fakePlayer.getZ() - player.getZ();
-                double distSq = dx * dx + dz * dz;
+                // 用 Minecraft 自己的方法获取玩家视线方向
+                Vec3d look = player.getRotationVec(1.0F);
+                // 假人相对玩家的位置
+                double dx = fake.getX() - player.getX();
+                double dz = fake.getZ() - player.getZ();
+                double dist = Math.sqrt(dx * dx + dz * dz);
 
-                float yawRad = (float) Math.toRadians(player.getYaw());
-                double lookX = -Math.sin(yawRad);
-                double lookZ = Math.cos(yawRad);
-                double dot = dx * lookX + dz * lookZ;
+                if (dist < 0.001) continue;
 
-                // 判定：假人是否离开视野
-                boolean behindAndFar = dot < 0 && distSq > 64;   // 在身后且超过8格
-                boolean tooFar       = distSq > 400;              // 超过20格
+                // 假人方向单位向量
+                double fx = dx / dist;
+                double fz = dz / dist;
 
-                if (behindAndFar || tooFar) {
-                    // 超出视野 → 传送回玩家身边
-                    server.getCommandManager().executeWithPrefix(
-                        player.getCommandSource(),
-                        "player shixiebushixie spawn at ~ ~ ~"
-                    );
+                // 点积：cos(夹角)
+                double dot = fx * look.x + fz * look.z;
+
+                // 在视野内 = 夹角小于60° 且 距离小于10格
+                boolean inView = dot > COS_HALF_FOV && dist < MAX_VIEW_DIST;
+
+                if (!inView) {
+                    // 弹回玩家正前方 4 格
+                    double tx = player.getX() + look.x * PUSH_BACK_DIST;
+                    double tz = player.getZ() + look.z * PUSH_BACK_DIST;
+                    fake.teleport(tx, fake.getY(), tz);
                 }
             }
         });
